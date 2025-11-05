@@ -1,18 +1,10 @@
-//! Simple & fast UTC time types.
-//!
-//! While [chrono](https://crates.io/crates/chrono) is great for dealing with time
-//! in most cases, its 96-bit integer design can be costly when processing and storing
-//! large amounts of timestamp data.
-//!
-//! This lib solves this problem by providing very simple UTC timestamps that can be
-//! converted from and into their corresponding chrono counterpart using Rust's
-//! `From` and `Into` traits. chrono is then used for all things that aren't expected
-//! to occur in big batches, such as formatting and displaying the timestamps.
-
 use core::{fmt, ops};
 
 #[cfg(feature = "serde-support")]
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "coarsetime-support")]
+use coarsetime::Clock;
 
 // ============================================================================================== //
 // [UTC timestamp]                                                                                //
@@ -49,8 +41,10 @@ impl From<UtcTimeStamp> for chrono::DateTime<chrono::Utc> {
     fn from(other: UtcTimeStamp) -> Self {
         let sec = other.0 / 1000;
         let ns = (other.0 % 1000 * 1_000_000) as u32;
-        let naive = chrono::NaiveDateTime::from_timestamp(sec, ns);
-        chrono::DateTime::<chrono::Utc>::from_utc(naive, chrono::Utc)
+        chrono::DateTime::<chrono::Utc>::from_timestamp(sec, ns).unwrap_or_else(|| {
+            // Fallback for out-of-range timestamps, though unlikely with i64 millis
+            chrono::DateTime::<chrono::Utc>::from_timestamp(0, 0).expect("0,0 is a valid timestamp")
+        })
     }
 }
 
@@ -62,8 +56,16 @@ impl UtcTimeStamp {
     }
 
     /// Initialize a timestamp using the current local time converted to UTC.
+    #[cfg(not(feature = "coarsetime-support"))]
     pub fn now() -> Self {
         chrono::Utc::now().into()
+    }
+
+    /// Initialize a timestamp using the current local time converted to UTC, using `coarsetime`.
+    /// For optimal performance, `coarsetime::Clock::update()` should be called periodically.
+    #[cfg(feature = "coarsetime-support")]
+    pub fn now() -> Self {
+        Self::from_nanoseconds(Clock::recent_since_epoch().as_nanos())
     }
 
     /// Explicit conversion from `i64`.
@@ -76,6 +78,12 @@ impl UtcTimeStamp {
     #[inline]
     pub const fn from_seconds(int: i64) -> Self {
         UtcTimeStamp(int * 1000)
+    }
+
+    /// Explicit conversion from `u64` nanoseconds.
+    #[inline]
+    pub fn from_nanoseconds(int: u64) -> Self {
+        UtcTimeStamp((int / 1_000_000) as i64)
     }
 
     /// Explicit conversion to `i64`.
@@ -457,6 +465,20 @@ mod tests {
             ts2.align_to_anchored(anchor, freq),
         );
     }
+
+    #[cfg(feature = "coarsetime-support")]
+    #[test]
+    fn coarsetime_now_test() {
+        use core::time::Duration;
+        coarsetime::Clock::update();
+        let coarsetime_now = UtcTimeStamp::now();
+        std::thread::sleep(Duration::from_millis(10));
+        let chrono_now = chrono::Utc::now();
+        let diff = (chrono_now.timestamp_millis() - coarsetime_now.as_milliseconds()).abs();
+        // Allow for a small difference due to the nature of coarsetime and thread sleep.
+        assert!(diff < 50, "Difference was: {}", diff);
+    }
 }
 
 // ============================================================================================== //
+

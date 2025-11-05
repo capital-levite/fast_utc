@@ -1,20 +1,14 @@
-utctimestamp
-============
-
-[![Crates.io][crates-badge]][crates-url]
-[![docs.rs][docs-badge]][docs-url]
-
-[crates-badge]: https://img.shields.io/crates/v/utctimestamp.svg
-[crates-url]: https://crates.io/crates/utctimestamp
-[docs-badge]: https://docs.rs/utctimestamp/badge.svg
-[docs-url]: https://docs.rs/utctimestamp/
+fast_utc
+========
 
 Simple & fast UTC time types
 
 ```toml
 [dependencies]
-utctimestamp = "0.1"
+fast_utc = "0.1"
 ```
+
+This library is a fork and modernization of the 5-year-old `utctimestamp` project by Joel Höner (https://github.com/athre0z/utctimestamp).
 
 While [chrono](https://crates.io/crates/chrono) is great for dealing with time
 in most cases, its 96-bit integer design can be costly when processing and storing 
@@ -28,4 +22,22 @@ to occur in big batches, such as formatting and displaying the timestamps.
 #### Optional features
 
 `serde-support` — Enable (de)serialization support with serde
+`coarsetime-support` — Enable `coarsetime` for faster timestamp generation (enabled by default)
 
+#### Benchmarks
+
+Benchmarks were run on a Linux system (specifics omitted for brevity).
+
+**With `coarsetime-support` enabled (default):**
+
+```
+UtcTimeStamp::now() (coarsetime) time:   [1.2601 ns 1.2737 ns 1.2913 ns]
+chrono::Utc::now()              time:   [36.935 ns 37.078 ns 37.231 ns]
+```
+
+**With `coarsetime-support` disabled (`--no-default-features`):**
+
+```
+UtcTimeStamp::now() (chrono fallback) time:   [41.372 ns 41.499 ns 41.626 ns]
+chrono::Utc::now()                  time:   [36.981 ns 37.095 ns 37.214 ns]
+```

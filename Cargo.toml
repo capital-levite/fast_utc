@@ -1,9 +1,10 @@
 [package]
-name = "utctimestamp"
-version = "0.1.4"
-authors = ["Joel Höner <athre0z@zyantific.com>"]
-edition = "2021"
-repository = "https://github.com/athre0z/utctimestamp"
+name = "fast_utc"
+version = "0.1.0"
+authors = ["llvm-x86 <kagari.shusei@proton.me>"]
+edition = "2024"
+rust-version = "1.91"
+repository = "https://github.com/capital-levite/fast_utc"
 description = "Simple & fast 64 bit UTC time types"
 license = "MIT OR Apache-2.0"
 

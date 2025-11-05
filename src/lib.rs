@@ -48,6 +48,28 @@ impl From<UtcTimeStamp> for chrono::DateTime<chrono::Utc> {
     }
 }
 
+pub fn now_millis() -> u64 {
+	#[cfg(feature = "coarsetime-support")]
+	{
+		coarsetime::Clock::recent_since_epoch().as_millis()
+	}
+	#[cfg(not(feature = "coarsetime-support"))]
+	{
+		chrono::Utc::now().timestamp_millis() as u64
+	}
+}
+
+pub fn now_nanos() -> u64 {
+	#[cfg(feature = "coarsetime-support")]
+	{
+		coarsetime::Clock::recent_since_epoch().as_nanos() as u64
+	}
+	#[cfg(not(feature = "coarsetime-support"))]
+	{
+		(chrono::Utc::now().timestamp_millis() as u64) * 1_000_000
+	}
+}
+
 impl UtcTimeStamp {
     /// Initialize a timestamp with 0, `1970-01-01 00:00:00 UTC`.
     #[inline]

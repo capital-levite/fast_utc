@@ -9,7 +9,7 @@ description = "Simple & fast 64 bit UTC time types"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-chrono = "0.4.42"
+chrono = { version = "0.4.42", features = ["serde"] }
 coarsetime = { version = "0.1.36", optional = true }
 
 [dependencies.serde]
@@ -19,6 +19,7 @@ features = ["derive"]
 
 [dev-dependencies]
 criterion = "0.7.0"
+serde_json = "1.0"
 
 [[bench]]
 name = "timestamp_bench_coarsetime"
@@ -30,7 +31,7 @@ harness = false
 required-features = []
 
 [features]
-default = ["coarsetime-support"]
+default = ["coarsetime-support", "serde-support"]
 serde-support = ["serde"]
 coarsetime-support = ["coarsetime"]
 

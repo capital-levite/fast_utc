@@ -31,13 +31,15 @@ Benchmarks were run on a Linux system (specifics omitted for brevity).
 **With `coarsetime-support` enabled (default):**
 
 ```
-UtcTimeStamp::now() (coarsetime) time:   [1.2601 ns 1.2737 ns 1.2913 ns]
-chrono::Utc::now()              time:   [36.935 ns 37.078 ns 37.231 ns]
+UtcTimeStamp::now() (coarsetime) time:   [2.3100 ns 2.3459 ns 2.3881 ns] (Regressed by ~80.4%)
+chrono::Utc::now()              time:   [60.333 ns 60.651 ns 61.028 ns] (Improved by ~6.2%)
 ```
 
 **With `coarsetime-support` disabled (`--no-default-features`):**
 
 ```
-UtcTimeStamp::now() (chrono fallback) time:   [41.372 ns 41.499 ns 41.626 ns]
-chrono::Utc::now()                  time:   [36.981 ns 37.095 ns 37.214 ns]
+UtcTimeStamp::now() (chrono fallback) time:   [2.9071 ns 3.0617 ns 3.2538 ns] (Regressed by ~149.5%)
+chrono::Utc::now()                  time:   [65.370 ns 67.725 ns 70.497 ns] (Regressed by ~77.1%)
 ```
+
+**Note:** Deserialization benchmarks are currently not available as they were removed from the benchmark files during recent changes.

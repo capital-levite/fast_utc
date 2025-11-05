@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use utctimestamp::UtcTimeStamp;
+use fast_utc::UtcTimeStamp;
 
 fn bench_now_coarsetime(c: &mut Criterion) {
     c.bench_function("UtcTimeStamp::now() (coarsetime)", |b| {

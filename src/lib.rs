@@ -68,7 +68,20 @@ impl UtcTimeStamp {
         Self::from_nanoseconds(Clock::recent_since_epoch().as_nanos())
     }
 
-    /// Explicit conversion from `i64`.
+    /// Fetches the current UTC time using `chrono::Utc::now()`.
+    #[cfg(not(feature = "coarsetime-support"))]
+    pub fn fetch_chrono_utc_now() -> chrono::DateTime<chrono::Utc> {
+        chrono::Utc::now()
+    }
+
+    /// Fetches the current UTC time using `coarsetime` and converts it to `chrono::DateTime<chrono::Utc>`.
+    /// For optimal performance, `coarsetime::Clock::update()` should be called periodically.
+    #[cfg(feature = "coarsetime-support")]
+    pub fn fetch_chrono_utc_now() -> chrono::DateTime<chrono::Utc> {
+        let nanos = coarsetime::Clock::recent_since_epoch().as_nanos();
+        UtcTimeStamp::from_nanoseconds(nanos).into()
+    }
+
     #[inline]
     pub const fn from_milliseconds(int: i64) -> Self {
         UtcTimeStamp(int)
@@ -305,20 +318,20 @@ impl TimeDelta {
 /// Examples:
 ///
 /// ```
-/// use utctimestamp::TimeRange;
+/// use fast_utc::TimeRange;
 /// use chrono::{offset::TimeZone, Duration, Utc};
 ///
-/// let start = Utc.ymd(2019, 4, 14).and_hms(0, 0, 0);
-/// let end = Utc.ymd(2019, 4, 16).and_hms(0, 0, 0);
+/// let start = Utc.with_ymd_and_hms(2019, 4, 14, 0, 0, 0).unwrap();
+/// let end = Utc.with_ymd_and_hms(2019, 4, 16, 0, 0, 0).unwrap();
 /// let step = Duration::hours(12);
 /// let tr: Vec<_> = TimeRange::right_closed(start, end, step).collect();
 ///
 /// assert_eq!(tr, vec![
-///     Utc.ymd(2019, 4, 14).and_hms(0, 0, 0).into(),
-///     Utc.ymd(2019, 4, 14).and_hms(12, 0, 0).into(),
-///     Utc.ymd(2019, 4, 15).and_hms(0, 0, 0).into(),
-///     Utc.ymd(2019, 4, 15).and_hms(12, 0, 0).into(),
-///     Utc.ymd(2019, 4, 16).and_hms(0, 0, 0).into(),
+///     Utc.with_ymd_and_hms(2019, 4, 14, 0, 0, 0).unwrap().into(),
+///     Utc.with_ymd_and_hms(2019, 4, 14, 12, 0, 0).unwrap().into(),
+///     Utc.with_ymd_and_hms(2019, 4, 15, 0, 0, 0).unwrap().into(),
+///     Utc.with_ymd_and_hms(2019, 4, 15, 12, 0, 0).unwrap().into(),
+///     Utc.with_ymd_and_hms(2019, 4, 16, 0, 0, 0).unwrap().into(),
 /// ]);
 /// ```
 #[derive(Debug)]
@@ -390,22 +403,22 @@ mod tests {
 
     #[test]
     fn open_time_range() {
-        let start = Utc.ymd(2019, 4, 14).and_hms(0, 0, 0);
-        let end = Utc.ymd(2019, 4, 16).and_hms(0, 0, 0);
+        let start = Utc.with_ymd_and_hms(2019, 4, 14, 0, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2019, 4, 16, 0, 0, 0).unwrap();
         let step = Duration::hours(12);
         let tr: Vec<_> = Iterator::collect(TimeRange::right_closed(start, end, step));
         assert_eq!(tr, vec![
-            Utc.ymd(2019, 4, 14).and_hms(0, 0, 0).into(),
-            Utc.ymd(2019, 4, 14).and_hms(12, 0, 0).into(),
-            Utc.ymd(2019, 4, 15).and_hms(0, 0, 0).into(),
-            Utc.ymd(2019, 4, 15).and_hms(12, 0, 0).into(),
-            Utc.ymd(2019, 4, 16).and_hms(0, 0, 0).into(),
+            Utc.with_ymd_and_hms(2019, 4, 14, 0, 0, 0).unwrap().into(),
+            Utc.with_ymd_and_hms(2019, 4, 14, 12, 0, 0).unwrap().into(),
+            Utc.with_ymd_and_hms(2019, 4, 15, 0, 0, 0).unwrap().into(),
+            Utc.with_ymd_and_hms(2019, 4, 15, 12, 0, 0).unwrap().into(),
+            Utc.with_ymd_and_hms(2019, 4, 16, 0, 0, 0).unwrap().into(),
         ]);
     }
 
     #[test]
     fn timestamp_and_delta_vs_chrono() {
-        let c_dt = Utc.ymd(2019, 3, 13).and_hms(16, 14, 9);
+        let c_dt = Utc.with_ymd_and_hms(2019, 3, 13, 16, 14, 9).unwrap();
         let c_td = Duration::milliseconds(123456);
 
         let my_dt = UtcTimeStamp::from(c_dt.clone());
@@ -433,33 +446,95 @@ mod tests {
         assert_ne!(ts1, ts3);
     }
 
-    #[test]
-    fn align_to_anchored() {
-        let day = Utc.ymd(2020, 9, 28);
-        let ts: UtcTimeStamp = day.and_hms(19, 32, 51).into();
+            #[test]
 
-        assert_eq!(
-            ts.align_to_anchored(day.and_hms(0, 0, 0).into(), TimeDelta::from_seconds(60 * 5)),
-            day.and_hms(19, 30, 0).into(),
-        );
+            fn align_to_anchored() {
 
-        assert_eq!(
-            ts.align_to_anchored(
-                day.and_hms(9 /* irrelevant */, 1, 3).into(),
-                TimeDelta::from_seconds(60 * 5)
-            ),
-            day.and_hms(19, 31, 3).into(),
-        );
-    }
+                let day_naive = chrono::NaiveDate::from_ymd_opt(2020, 9, 28).unwrap();
+
+                let ts: UtcTimeStamp = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+
+                    day_naive.and_hms_opt(19, 32, 51).unwrap(),
+
+                    chrono::Utc,
+
+                ).into();
+
+        
+
+                assert_eq!(
+
+                    ts.align_to_anchored(
+
+                        chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+
+                            day_naive.and_hms_opt(0, 0, 0).unwrap(),
+
+                            chrono::Utc,
+
+                        ).into(),
+
+                        TimeDelta::from_seconds(60 * 5)
+
+                    ),
+
+                    chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+
+                        day_naive.and_hms_opt(19, 30, 0).unwrap(),
+
+                        chrono::Utc,
+
+                    ).into(),
+
+                );
+
+        
+
+                assert_eq!(
+
+                    ts.align_to_anchored(
+
+                        chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+
+                            day_naive.and_hms_opt(9 /* irrelevant */, 1, 3).unwrap(),
+
+                            chrono::Utc,
+
+                        ).into(),
+
+                        TimeDelta::from_seconds(60 * 5)
+
+                    ),
+
+                    chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+
+                        day_naive.and_hms_opt(19, 31, 3).unwrap(),
+
+                        chrono::Utc,
+
+                    ).into(),
+
+                );
+
+            }
 
     #[test]
     fn align_to_anchored_eq() {
-        let day = Utc.ymd(2020, 1, 1);
-        let anchor: UtcTimeStamp = day.and_hms(0, 0, 0).into();
+        let day_naive = chrono::NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
+        let anchor: UtcTimeStamp = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            day_naive.and_hms_opt(0, 0, 0).unwrap(),
+            chrono::Utc,
+        ).into();
         let freq = TimeDelta::from_seconds(5 * 60);
 
-        let ts1: UtcTimeStamp = day.and_hms(12, 1, 11).into();
-        let ts2: UtcTimeStamp = day.and_hms(12, 4, 11).into();
+        let ts1: UtcTimeStamp = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            day_naive.and_hms_opt(12, 1, 11).unwrap(),
+            chrono::Utc,
+        ).into();
+        let ts2: UtcTimeStamp = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
+            day_naive.and_hms_opt(12, 4, 11).unwrap(),
+            chrono::Utc,
+        ).into();
         assert_eq!(
             ts1.align_to_anchored(anchor, freq),
             ts2.align_to_anchored(anchor, freq),
@@ -476,6 +551,18 @@ mod tests {
         let chrono_now = chrono::Utc::now();
         let diff = (chrono_now.timestamp_millis() - coarsetime_now.as_milliseconds()).abs();
         // Allow for a small difference due to the nature of coarsetime and thread sleep.
+        assert!(diff < 50, "Difference was: {}", diff);
+    }
+
+    #[test]
+    fn test_fetch_chrono_utc_now() {
+        use chrono::Utc;
+        #[cfg(feature = "coarsetime-support")]
+        coarsetime::Clock::update();
+        let now = UtcTimeStamp::fetch_chrono_utc_now();
+        let chrono_now = Utc::now();
+        // Allow for a small difference due to execution time
+        let diff = (chrono_now.timestamp_millis() - now.timestamp_millis()).abs();
         assert!(diff < 50, "Difference was: {}", diff);
     }
 }

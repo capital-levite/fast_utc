@@ -6,6 +6,16 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "coarsetime-support")]
 use coarsetime::Clock;
 
+#[cfg(feature = "coarsetime-support")]
+pub fn coarsetime_update() {
+	coarsetime::Clock::update();
+}
+
+#[cfg(feature = "coarsetime-support")]
+pub fn coarsetime_init_updater() {
+	coarsetime::Updater::new(1).start().expect("Failed to start coarsetime updater");
+}
+
 // ============================================================================================== //
 // [UTC timestamp]                                                                                //
 // ============================================================================================== //

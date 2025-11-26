@@ -10,9 +10,9 @@ The primary goal of `fast_utc` is to offer a simple, fast, and lightweight set o
 
 `fast_utc` centers around:
 
-- `UtcTimeStamp`: a millisecond‑precision UTC timestamp stored as `i64` milliseconds since the Unix epoch.
+- `Timestamp`: a millisecond‑precision UTC timestamp stored as `i64` milliseconds since the Unix epoch.
 - `TimeDelta`: a millisecond‑precision duration stored as `i64` milliseconds.
-- `TimeRange`: an iterator that produces regularly spaced `UtcTimeStamp` values.
+- `TimeRange`: an iterator that produces regularly spaced `Timestamp` values.
 
 It also provides optional integration with `serde` for serialization and with `coarsetime` for ultra‑fast `now()` retrieval.
 
@@ -27,11 +27,11 @@ It also provides optional integration with `serde` for serialization and with `c
 - Represent UTC timestamps as `i64` milliseconds since the Unix epoch (`1970-01-01T00:00:00Z`).
 - Provide minimal but expressive arithmetic via a `TimeDelta` duration type.
 - Offer conversions to and from `chrono` types for interoperability.
-- Optionally use `coarsetime` to get extremely fast, cached timestamps for `UtcTimeStamp::now()`.
+- Optionally use `coarsetime` to get extremely fast, cached timestamps for `Timestamp::now()`.
 
 The library’s central representation is:
 
-- `UtcTimeStamp`: `i64` milliseconds since Unix epoch, millisecond precision.
+- `Timestamp`: `i64` milliseconds since Unix epoch, millisecond precision.
 - `TimeDelta`: `i64` milliseconds, representing durations between timestamps.
 
 This representation enables:
@@ -57,14 +57,14 @@ fast_utc = "0.1" # Use the latest version available for this project
 
 The crate supports several optional features that can be enabled in `Cargo.toml`:
 
-- `serde-support`: Enables serialization and deserialization of `UtcTimeStamp` and `TimeDelta` using `serde`.
+- `serde-support`: Enables serialization and deserialization of `Timestamp` and `TimeDelta` using `serde`.
 
   ```toml
   [dependencies]
   fast_utc = { version = "0.1", features = ["serde-support"] }
   ```
 
-- `coarsetime-support`: (Enabled by default) Integrates with the `coarsetime` crate for extremely fast timestamp generation. When this feature is enabled, `UtcTimeStamp::now()` leverages `coarsetime`’s cached timestamp value for high performance.
+- `coarsetime-support`: (Enabled by default) Integrates with the `coarsetime` crate for extremely fast timestamp generation. When this feature is enabled, `Timestamp::now()` leverages `coarsetime`’s cached timestamp value for high performance.
 
   ```toml
   [dependencies]
@@ -82,83 +82,83 @@ The crate supports several optional features that can be enabled in `Cargo.toml`
 
 ## 3. Core Types
 
-### 3.1 `UtcTimeStamp`
+### 3.1 `Timestamp`
 
 Represents a UTC timestamp with millisecond precision, stored internally as an `i64` representing milliseconds since the Unix epoch.
 
 Conceptually:
 
-- `UtcTimeStamp(0)` corresponds to `1970-01-01T00:00:00Z`.
+- `Timestamp(0)` corresponds to `1970-01-01T00:00:00Z`.
 - Positive values are times after the epoch; negative values are times before.
 
 #### Key Methods
 
-- **`UtcTimeStamp::zero() -> Self`**
+- **`Timestamp::zero() -> Self`**
   - **Description:** Initializes a timestamp representing `1970-01-01 00:00:00 UTC` (Unix epoch).
-  - **Returns:** A `UtcTimeStamp` instance.
+  - **Returns:** A `Timestamp` instance.
 
-- **`UtcTimeStamp::now() -> Self`**
+- **`Timestamp::now() -> Self`**
   - **Description:** Initializes a timestamp representing the current UTC time.
     - If the `coarsetime-support` feature is enabled (default), this uses `coarsetime::Clock::recent_since_epoch()` under the hood for high performance. For best results, the application should periodically call `coarsetime::Clock::update()` or run a `coarsetime::Updater` in the background.
     - If `coarsetime-support` is disabled, this falls back to `chrono::Utc::now()`.
-  - **Returns:** A `UtcTimeStamp` instance representing "now" in UTC.
+  - **Returns:** A `Timestamp` instance representing "now" in UTC.
 
-- **`UtcTimeStamp::fetch_chrono_utc_now() -> chrono::DateTime<chrono::Utc>`**
+- **`Timestamp::fetch_chrono_utc_now() -> chrono::DateTime<chrono::Utc>`**
   - **Description:** Fetches the current UTC time directly as a `chrono::DateTime<chrono::Utc>` instance.
     - With `coarsetime-support` enabled, still uses `coarsetime::Clock::recent_since_epoch()` for performance, then converts to `chrono`.
     - With `coarsetime-support` disabled, uses `chrono::Utc::now()` directly.
   - **Returns:** A `chrono::DateTime<chrono::Utc>` instance.
 
-- **`UtcTimeStamp::from_milliseconds(int: i64) -> Self`**
-  - **Description:** Creates a `UtcTimeStamp` from an `i64` representing milliseconds since the Unix epoch.
+- **`Timestamp::from_milliseconds(int: i64) -> Self`**
+  - **Description:** Creates a `Timestamp` from an `i64` representing milliseconds since the Unix epoch.
   - **Parameters:** `int` (`i64`) – milliseconds since epoch.
-  - **Returns:** A `UtcTimeStamp` instance.
+  - **Returns:** A `Timestamp` instance.
 
-- **`UtcTimeStamp::from_seconds(int: i64) -> Self`**
-  - **Description:** Creates a `UtcTimeStamp` from an `i64` representing seconds since the Unix epoch.
+- **`Timestamp::from_seconds(int: i64) -> Self`**
+  - **Description:** Creates a `Timestamp` from an `i64` representing seconds since the Unix epoch.
   - **Parameters:** `int` (`i64`) – seconds since epoch.
-  - **Returns:** A `UtcTimeStamp` instance.
+  - **Returns:** A `Timestamp` instance.
 
-- **`UtcTimeStamp::from_nanoseconds(int: u64) -> Self`**
-  - **Description:** Creates a `UtcTimeStamp` from a `u64` representing nanoseconds since the Unix epoch.
-    - Note: `UtcTimeStamp` itself has millisecond precision, so any sub‑millisecond component will be truncated.
+- **`Timestamp::from_nanoseconds(int: u64) -> Self`**
+  - **Description:** Creates a `Timestamp` from a `u64` representing nanoseconds since the Unix epoch.
+    - Note: `Timestamp` itself has millisecond precision, so any sub‑millisecond component will be truncated.
   - **Parameters:** `int` (`u64`) – nanoseconds since epoch.
-  - **Returns:** A `UtcTimeStamp` instance.
+  - **Returns:** A `Timestamp` instance.
 
-- **`UtcTimeStamp::as_milliseconds(self) -> i64`**
+- **`Timestamp::as_milliseconds(self) -> i64`**
   - **Description:** Returns the timestamp as an `i64` representing milliseconds since the Unix epoch.
   - **Returns:** `i64` milliseconds.
 
-- **`UtcTimeStamp::align_to(self, freq: TimeDelta) -> UtcTimeStamp`**
+- **`Timestamp::align_to(self, freq: TimeDelta) -> Timestamp`**
   - **Description:** Aligns the timestamp to a given frequency (e.g., nearest 5 minutes) relative to the Unix epoch.
   - **Parameters:** `freq` (`TimeDelta`) – the frequency to align to.
-  - **Returns:** A new `UtcTimeStamp` aligned to the given frequency.
+  - **Returns:** A new `Timestamp` aligned to the given frequency.
 
-- **`UtcTimeStamp::align_to_anchored(self, anchor: UtcTimeStamp, freq: TimeDelta) -> UtcTimeStamp`**
+- **`Timestamp::align_to_anchored(self, anchor: Timestamp, freq: TimeDelta) -> Timestamp`**
   - **Description:** Aligns the timestamp to a given frequency, using a specified anchor point instead of the Unix epoch. This is useful for application‑specific alignment (e.g., custom trading session start).
   - **Parameters:**
-    - `anchor` (`UtcTimeStamp`) – the anchor timestamp.
+    - `anchor` (`Timestamp`) – the anchor timestamp.
     - `freq` (`TimeDelta`) – the frequency to align to.
-  - **Returns:** A new `UtcTimeStamp` aligned to the frequency relative to the anchor.
+  - **Returns:** A new `Timestamp` aligned to the frequency relative to the anchor.
 
-- **`UtcTimeStamp::is_zero(self) -> bool`**
+- **`Timestamp::is_zero(self) -> bool`**
   - **Description:** Checks if the timestamp equals the Unix epoch (`1970-01-01 00:00:00 UTC`).
   - **Returns:** `true` if zero, `false` otherwise.
 
 #### Operator Overloads
 
-`UtcTimeStamp` supports arithmetic with `TimeDelta` and other `UtcTimeStamp`s:
+`Timestamp` supports arithmetic with `TimeDelta` and other `Timestamp`s:
 
-- `UtcTimeStamp + TimeDelta -> UtcTimeStamp`
-- `UtcTimeStamp - TimeDelta -> UtcTimeStamp`
-- `UtcTimeStamp - UtcTimeStamp -> TimeDelta`
+- `Timestamp + TimeDelta -> Timestamp`
+- `Timestamp - TimeDelta -> Timestamp`
+- `Timestamp - Timestamp -> TimeDelta`
 
 This allows for natural usage patterns:
 
 ```rust
-use fast_utc::{UtcTimeStamp, TimeDelta};
+use fast_utc::{Timestamp, TimeDelta};
 
-let start = UtcTimeStamp::now();
+let start = Timestamp::now();
 let one_minute = TimeDelta::from_minutes(1);
 let end = start + one_minute;
 
@@ -170,17 +170,17 @@ assert!(elapsed.is_positive());
 
 To maintain interoperability with `chrono`, `fast_utc` provides `From` implementations:
 
-- `From<chrono::DateTime<chrono::Utc>> for UtcTimeStamp`
-- `From<UtcTimeStamp> for chrono::DateTime<chrono::Utc>`
+- `From<chrono::DateTime<chrono::Utc>> for Timestamp`
+- `From<Timestamp> for chrono::DateTime<chrono::Utc>`
 
 This allows simple conversions:
 
 ```rust
-use fast_utc::UtcTimeStamp;
+use fast_utc::Timestamp;
 use chrono::{DateTime, Utc};
 
 let chrono_now: DateTime<Utc> = Utc::now();
-let fast_now: UtcTimeStamp = chrono_now.into();
+let fast_now: Timestamp = chrono_now.into();
 
 let back_to_chrono: DateTime<Utc> = fast_now.into();
 ```
@@ -279,35 +279,35 @@ let back_to_chrono: Duration = fast_dur.into();
 
 ## 4. `TimeRange`
 
-`TimeRange` is an iterator for looping over `UtcTimeStamp`s given a start, end, and step `TimeDelta`.
+`TimeRange` is an iterator for looping over `Timestamp`s given a start, end, and step `TimeDelta`.
 
 This is useful for generating evenly spaced time grids (e.g., every minute, every 5 seconds, etc.) between two timestamps.
 
 ### Key Constructors
 
-- **`TimeRange::right_closed(start: impl Into<UtcTimeStamp>, end: impl Into<UtcTimeStamp>, step: impl Into<TimeDelta>) -> Self`**
+- **`TimeRange::right_closed(start: impl Into<Timestamp>, end: impl Into<Timestamp>, step: impl Into<TimeDelta>) -> Self`**
   - **Description:** Creates a time range that includes the `end` timestamp, if it lies exactly on a step boundary.
   - **Parameters:**
-    - `start` (Into<`UtcTimeStamp`>)
-    - `end` (Into<`UtcTimeStamp`>)
+    - `start` (Into<`Timestamp`>)
+    - `end` (Into<`Timestamp`>)
     - `step` (Into<`TimeDelta`>)
   - **Returns:** A `TimeRange` iterator.
 
-- **`TimeRange::right_open(start: impl Into<UtcTimeStamp>, end: impl Into<UtcTimeStamp>, step: impl Into<TimeDelta>) -> Self`**
+- **`TimeRange::right_open(start: impl Into<Timestamp>, end: impl Into<Timestamp>, step: impl Into<TimeDelta>) -> Self`**
   - **Description:** Creates a time range that excludes the `end` timestamp, even if it falls exactly on a step boundary.
   - **Parameters:**
-    - `start` (Into<`UtcTimeStamp`>)
-    - `end` (Into<`UtcTimeStamp`>)
+    - `start` (Into<`Timestamp`>)
+    - `end` (Into<`Timestamp`>)
     - `step` (Into<`TimeDelta`>)
   - **Returns:** A `TimeRange` iterator.
 
 ### Example Usage
 
 ```rust
-use fast_utc::{UtcTimeStamp, TimeDelta, TimeRange};
+use fast_utc::{Timestamp, TimeDelta, TimeRange};
 
-let start = UtcTimeStamp::from_seconds(0);
-let end   = UtcTimeStamp::from_seconds(10);
+let start = Timestamp::from_seconds(0);
+let end   = Timestamp::from_seconds(10);
 let step  = TimeDelta::from_seconds(2);
 
 let mut count = 0;
@@ -325,7 +325,7 @@ assert_eq!(count, 6);
 
 ## 5. Utilizing `coarsetime` for Maximum Performance
 
-When the `coarsetime-support` feature is enabled (which is the default for `fast_utc`), `UtcTimeStamp::now()` leverages `coarsetime`’s highly optimized, cached timestamp.
+When the `coarsetime-support` feature is enabled (which is the default for `fast_utc`), `Timestamp::now()` leverages `coarsetime`’s highly optimized, cached timestamp.
 
 To ensure this cached value stays fresh and monotonic, your application should:
 
@@ -335,7 +335,7 @@ To ensure this cached value stays fresh and monotonic, your application should:
 ### Example: Manual Clock Updates
 
 ```rust
-use fast_utc::UtcTimeStamp;
+use fast_utc::Timestamp;
 use std::time::Duration;
 
 fn main() {
@@ -344,7 +344,7 @@ fn main() {
         coarsetime::Clock::update();
 
         // Get the current timestamp using fast_utc (uses cached coarsetime value)
-        let now = UtcTimeStamp::now();
+        let now = Timestamp::now();
 
         // ... your application logic using `now` ...
 
@@ -357,7 +357,7 @@ fn main() {
 ### Example: Using `coarsetime::Updater`
 
 ```rust
-use fast_utc::UtcTimeStamp;
+use fast_utc::Timestamp;
 
 fn main() {
     // Start an updater that refreshes the coarsetime cache every 1 ms
@@ -365,9 +365,9 @@ fn main() {
         .start()
         .expect("Failed to start coarsetime updater");
 
-    // In your application logic, you can now call UtcTimeStamp::now()
+    // In your application logic, you can now call Timestamp::now()
     // without explicitly calling Clock::update().
-    let now = UtcTimeStamp::now();
+    let now = Timestamp::now();
     println!("Now: {} ms since epoch", now.as_milliseconds());
 
     // ... rest of your application ...
@@ -377,7 +377,7 @@ fn main() {
 }
 ```
 
-By following this pattern, LLMs should understand that `UtcTimeStamp::now()` in `fast_utc` offers extremely low‑latency timestamp acquisition, provided the `coarsetime` cache is actively maintained.
+By following this pattern, LLMs should understand that `Timestamp::now()` in `fast_utc` offers extremely low‑latency timestamp acquisition, provided the `coarsetime` cache is actively maintained.
 
 ---
 
@@ -434,7 +434,7 @@ Before proposing any changes to `fast_utc`, perform and present this analysis.
 
 **A. Contextual Survey**
 
-- List all relevant components: files, modules, types (`UtcTimeStamp`, `TimeDelta`, `TimeRange`), features (`serde-support`, `coarsetime-support`), benchmarks, and documentation.
+- List all relevant components: files, modules, types (`Timestamp`, `TimeDelta`, `TimeRange`), features (`serde-support`, `coarsetime-support`), benchmarks, and documentation.
 - Identify the stated goal and any unstated constraints (e.g., hard performance budgets, binary size constraints, compatibility requirements).
 
 **B. Multi‑Dimensional Analysis**
@@ -478,7 +478,7 @@ Only after completing Phase 1, provide the solution using this structured format
 
 For each action:
 
-- Specify the **exact file path** and location (e.g., “add this function near other `UtcTimeStamp` constructors”).
+- Specify the **exact file path** and location (e.g., “add this function near other `Timestamp` constructors”).
 - Provide the **exact code** to be written, edited, or deleted.
 - Provide **exact shell commands** to run (e.g., tests, benches, fmt, clippy).
 
@@ -500,7 +500,7 @@ Example format:
 >     }
 > }
 > 
-> impl UtcTimeStamp {
+> impl Timestamp {
 >     pub fn now() -> Self {
 >         Self::from_milliseconds(now_millis_since_epoch())
 >     }

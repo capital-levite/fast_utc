@@ -8,7 +8,7 @@ Simple & fast UTC time types
 fast_utc = "0.1"
 ```
 
-This library is a fork and modernization of the 5-year-old `utctimestamp` project by Joel Höner (https://github.com/athre0z/utctimestamp).
+This library is a fork and modernization of the 5-year-old `Timestamp` project by Joel Höner (https://github.com/athre0z/Timestamp).
 
 While [chrono](https://crates.io/crates/chrono) is great for dealing with time
 in most cases, its 96-bit integer design can be costly when processing and storing 
@@ -31,14 +31,14 @@ Benchmarks were run on a Linux system (specifics omitted for brevity).
 **With `coarsetime-support` enabled (default):**
 
 ```
-UtcTimeStamp::now() (coarsetime) time:   [2.3100 ns 2.3459 ns 2.3881 ns] (Regressed by ~80.4%)
+Timestamp::now() (coarsetime) time:   [2.3100 ns 2.3459 ns 2.3881 ns] (Regressed by ~80.4%)
 chrono::Utc::now()              time:   [60.333 ns 60.651 ns 61.028 ns] (Improved by ~6.2%)
 ```
 
 **With `coarsetime-support` disabled (`--no-default-features`):**
 
 ```
-UtcTimeStamp::now() (chrono fallback) time:   [2.9071 ns 3.0617 ns 3.2538 ns] (Regressed by ~149.5%)
+Timestamp::now() (chrono fallback) time:   [2.9071 ns 3.0617 ns 3.2538 ns] (Regressed by ~149.5%)
 chrono::Utc::now()                  time:   [65.370 ns 67.725 ns 70.497 ns] (Regressed by ~77.1%)
 ```
 

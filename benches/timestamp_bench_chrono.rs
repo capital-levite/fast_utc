@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use fast_utc::UtcTimeStamp;
+use fast_utc::Timestamp;
 
 fn bench_now_chrono_fallback(c: &mut Criterion) {
-    c.bench_function("UtcTimeStamp::now() (chrono fallback)", |b| {
+    c.bench_function("Timestamp::now() (chrono fallback)", |b| {
         b.iter(|| {
-            UtcTimeStamp::now();
+            Timestamp::now();
         })
     });
 }

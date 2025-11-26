@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use fast_utc::UtcTimeStamp;
+use fast_utc::Timestamp;
 
 fn bench_now_coarsetime(c: &mut Criterion) {
-    c.bench_function("UtcTimeStamp::now() (coarsetime)", |b| {
+    c.bench_function("Timestamp::now() (coarsetime)", |b| {
         b.iter(|| {
-            UtcTimeStamp::now();
+            Timestamp::now();
         })
     });
 }

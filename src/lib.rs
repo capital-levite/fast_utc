@@ -42,43 +42,22 @@ impl fmt::Debug for UtcTimeStamp {
 /// Create a dumb timestamp from a chrono date time object.
 impl From<chrono::DateTime<chrono::Utc>> for UtcTimeStamp {
     fn from(other: chrono::DateTime<chrono::Utc>) -> Self {
-        Self(other.timestamp_millis())
+        Self(other.timestamp_nanos_opt().unwrap_or(0))
     }
 }
 
 /// Create a chrono date time object from a dumb timestamp.
 impl From<UtcTimeStamp> for chrono::DateTime<chrono::Utc> {
     fn from(other: UtcTimeStamp) -> Self {
-        let sec = other.0 / 1000;
-        let ns = (other.0 % 1000 * 1_000_000) as u32;
+        let sec = other.0 / 1_000_000_000;
+        let ns = (other.0 % 1_000_000_000) as u32;
         chrono::DateTime::<chrono::Utc>::from_timestamp(sec, ns).unwrap_or_else(|| {
-            // Fallback for out-of-range timestamps, though unlikely with i64 millis
+            // Fallback for out-of-range timestamps
             chrono::DateTime::<chrono::Utc>::from_timestamp(0, 0).expect("0,0 is a valid timestamp")
         })
     }
 }
 
-pub fn now_millis() -> u64 {
-	#[cfg(feature = "coarsetime-support")]
-	{
-		coarsetime::Clock::recent_since_epoch().as_millis()
-	}
-	#[cfg(not(feature = "coarsetime-support"))]
-	{
-		chrono::Utc::now().timestamp_millis() as u64
-	}
-}
-
-pub fn now_nanos() -> u64 {
-	#[cfg(feature = "coarsetime-support")]
-	{
-		coarsetime::Clock::recent_since_epoch().as_nanos() as u64
-	}
-	#[cfg(not(feature = "coarsetime-support"))]
-	{
-		(chrono::Utc::now().timestamp_millis() as u64) * 1_000_000
-	}
-}
 
 impl UtcTimeStamp {
     /// Initialize a timestamp with 0, `1970-01-01 00:00:00 UTC`.
@@ -90,14 +69,14 @@ impl UtcTimeStamp {
     /// Initialize a timestamp using the current local time converted to UTC.
     #[cfg(not(feature = "coarsetime-support"))]
     pub fn now() -> Self {
-        chrono::Utc::now().into()
+        Self(chrono::Utc::now().timestamp_nanos())
     }
 
     /// Initialize a timestamp using the current local time converted to UTC, using `coarsetime`.
     /// For optimal performance, `coarsetime::Clock::update()` should be called periodically.
     #[cfg(feature = "coarsetime-support")]
     pub fn now() -> Self {
-        Self::from_nanoseconds(Clock::recent_since_epoch().as_nanos())
+        Self(Clock::recent_since_epoch().as_nanos() as i64)
     }
 
     /// Fetches the current UTC time using `chrono::Utc::now()`.
@@ -111,29 +90,35 @@ impl UtcTimeStamp {
     #[cfg(feature = "coarsetime-support")]
     pub fn fetch_chrono_utc_now() -> chrono::DateTime<chrono::Utc> {
         let nanos = coarsetime::Clock::recent_since_epoch().as_nanos();
-        UtcTimeStamp::from_nanoseconds(nanos).into()
+        UtcTimeStamp(nanos as i64).into()
     }
 
     #[inline]
     pub const fn from_milliseconds(int: i64) -> Self {
-        UtcTimeStamp(int)
+        UtcTimeStamp(int * 1_000_000)
     }
 
     /// Explicit conversion from `i64` seconds.
     #[inline]
     pub const fn from_seconds(int: i64) -> Self {
-        UtcTimeStamp(int * 1000)
+        UtcTimeStamp(int * 1_000_000_000)
     }
 
     /// Explicit conversion from `u64` nanoseconds.
     #[inline]
     pub fn from_nanoseconds(int: u64) -> Self {
-        UtcTimeStamp((int / 1_000_000) as i64)
+        UtcTimeStamp(int as i64)
     }
 
-    /// Explicit conversion to `i64`.
+    /// Explicit conversion to `i64` milliseconds.
     #[inline]
     pub const fn as_milliseconds(self) -> i64 {
+        self.0 / 1_000_000
+    }
+
+    /// Explicit conversion to `i64` nanoseconds.
+    #[inline]
+    pub const fn as_nanoseconds(self) -> i64 {
         self.0
     }
 
@@ -222,14 +207,17 @@ impl fmt::Display for TimeDelta {
 /// Create a simple timedelta from a chrono duration.
 impl From<chrono::Duration> for TimeDelta {
     fn from(other: chrono::Duration) -> Self {
-        Self(other.num_milliseconds())
+        // chrono::Duration::num_nanoseconds() returns Option<i64>
+        // If the duration is too large to fit in i64 nanoseconds, it returns None.
+        // We handle this by clamping to 0, consistent with UtcTimeStamp's i64 nanosecond limits.
+        Self(other.num_nanoseconds().unwrap_or(0))
     }
 }
 
 /// Create a chrono duration from a simple timedelta.
 impl From<TimeDelta> for chrono::Duration {
     fn from(other: TimeDelta) -> Self {
-        chrono::Duration::milliseconds(other.0)
+        chrono::Duration::nanoseconds(other.0)
     }
 }
 
@@ -294,49 +282,39 @@ impl TimeDelta {
 
     #[inline]
     pub const fn from_hours(int: i64) -> Self {
-        TimeDelta::from_minutes(int * 60)
+        TimeDelta(int * 60 * 60 * 1_000_000_000)
     }
 
     #[inline]
     pub const fn from_minutes(int: i64) -> Self {
-        TimeDelta::from_seconds(int * 60)
+        TimeDelta(int * 60 * 1_000_000_000)
     }
 
     #[inline]
     pub const fn from_seconds(int: i64) -> Self {
-        TimeDelta(int * 1000)
+        TimeDelta(int * 1_000_000_000)
     }
 
     #[inline]
     pub const fn from_milliseconds(int: i64) -> Self {
+        TimeDelta(int * 1_000_000)
+    }
+
+    #[inline]
+    pub const fn from_nanoseconds(int: i64) -> Self {
         TimeDelta(int)
     }
 
     #[inline]
     pub const fn as_milliseconds(self) -> i64 {
+        self.0 / 1_000_000
+    }
+
+    #[inline]
+    pub const fn as_nanoseconds(self) -> i64 {
         self.0
     }
-
-    /// Check whether the timedelta is 0.
-    #[inline]
-    pub const fn is_zero(self) -> bool {
-        self.0 == 0
-    }
-
-    /// Returns `true` if the timedelta is positive and
-    /// `false` if it is zero or negative.
-    #[inline]
-    pub const fn is_positive(self) -> bool {
-        self.0 > 0
-    }
-
-    /// Returns `true` if the timedelta is negative and
-    /// `false` if it is zero or positive.
-    #[inline]
-    pub const fn is_negative(self) -> bool {
-        self.0 < 0
-    }
-}
+} // This brace was missing
 
 // ============================================================================================== //
 // [TimeRange]                                                                                    //
@@ -451,10 +429,10 @@ mod tests {
     #[test]
     fn timestamp_and_delta_vs_chrono() {
         let c_dt = Utc.with_ymd_and_hms(2019, 3, 13, 16, 14, 9).unwrap();
-        let c_td = Duration::milliseconds(123456);
+        let c_td = Duration::nanoseconds(123456000000); // 123456 milliseconds as nanoseconds
 
         let my_dt = UtcTimeStamp::from(c_dt.clone());
-        let my_td = TimeDelta::from_milliseconds(123456);
+        let my_td = TimeDelta::from_nanoseconds(123456000000); // 123456 milliseconds as nanoseconds
         assert_eq!(TimeDelta::from(c_td.clone()), my_td);
 
         let c_result = c_dt + c_td * 555;
@@ -464,9 +442,9 @@ mod tests {
 
     #[test]
     fn timestamp_ord_eq() {
-        let ts1: UtcTimeStamp = UtcTimeStamp::from_milliseconds(111);
-        let ts2: UtcTimeStamp = UtcTimeStamp::from_milliseconds(222);
-        let ts3: UtcTimeStamp = UtcTimeStamp::from_milliseconds(222);
+        let ts1: UtcTimeStamp = UtcTimeStamp::from_nanoseconds(111);
+        let ts2: UtcTimeStamp = UtcTimeStamp::from_nanoseconds(222);
+        let ts3: UtcTimeStamp = UtcTimeStamp::from_nanoseconds(222);
 
         assert!(ts1 < ts2);
         assert!(ts2 > ts1);
@@ -581,9 +559,10 @@ mod tests {
         let coarsetime_now = UtcTimeStamp::now();
         std::thread::sleep(Duration::from_millis(10));
         let chrono_now = chrono::Utc::now();
-        let diff = (chrono_now.timestamp_millis() - coarsetime_now.as_milliseconds()).abs();
+        let diff = (chrono_now.timestamp_nanos_opt().unwrap_or(0) - coarsetime_now.as_nanoseconds()).abs();
         // Allow for a small difference due to the nature of coarsetime and thread sleep.
-        assert!(diff < 50, "Difference was: {}", diff);
+        // 50ms = 50_000_000ns
+        assert!(diff < 50_000_000, "Difference was: {}", diff);
     }
 
     #[test]
@@ -594,8 +573,9 @@ mod tests {
         let now = UtcTimeStamp::fetch_chrono_utc_now();
         let chrono_now = Utc::now();
         // Allow for a small difference due to execution time
-        let diff = (chrono_now.timestamp_millis() - now.timestamp_millis()).abs();
-        assert!(diff < 50, "Difference was: {}", diff);
+        // 50ms = 50_000_000ns
+        let diff = (chrono_now.timestamp_nanos_opt().unwrap_or(0) - now.timestamp_nanos_opt().unwrap_or(0)).abs();
+        assert!(diff < 50_000_000, "Difference was: {}", diff);
     }
 }
 
